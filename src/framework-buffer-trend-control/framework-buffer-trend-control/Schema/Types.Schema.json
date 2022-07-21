@@ -1,0 +1,11 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "definitions": {
+    "TcHmi.Controls.framework_apex_trend.frameworkapextrendcontrol": {
+      "type": "object",
+      "frameworkInstanceOf": "TcHmi.Controls.System.TcHmiControl",
+      "frameworkControlType": "frameworkapextrendcontrol",
+      "frameworkControlNamespace": "TcHmi.Controls.framework_apex_trend"
+    }
+  }
+}

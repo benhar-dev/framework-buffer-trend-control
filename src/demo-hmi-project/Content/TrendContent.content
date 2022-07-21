@@ -1,0 +1,46 @@
+﻿<div id="TrendContent" data-tchmi-type="TcHmi.Controls.System.TcHmiContent" data-tchmi-top="0" data-tchmi-left="0" data-tchmi-width="100" data-tchmi-height="100" data-tchmi-width-unit="%" data-tchmi-height-unit="%">
+
+<div id="Frameworkapextrendcontrol_1" data-tchmi-type="TcHmi.Controls.framework_apex_trend.frameworkapextrendcontrol" data-tchmi-apex-interval="1000" data-tchmi-height-unit="px" data-tchmi-left="1" data-tchmi-left-unit="px" data-tchmi-top="1" data-tchmi-top-unit="px" data-tchmi-width-unit="px" data-tchmi-right="1" data-tchmi-bottom="1" data-tchmi-apex-start="first" data-tchmi-apex-end="latest" data-tchmi-is-enabled="true">
+
+
+
+<script data-tchmi-target-attribute="data-tchmi-apex-options" type="application/json">
+{
+  "yaxis": {
+    "min": 0,
+    "max": 300
+  }
+}
+</script>
+
+<script data-tchmi-target-attribute="data-tchmi-apex-linedefinitionlist" type="application/json">
+[
+  {
+    "legendName": "",
+    "showAxis": true,
+    "lineWidth": 1,
+    "pointDot": false,
+    "pointDotRadius": 3,
+    "pointDotStrokeWidth": 1,
+    "lineColor": {
+      "color": "rgba(71, 148, 218, 1)"
+    },
+    "pointDotFillColor": {
+      "color": "rgba(71, 148, 218, 1)"
+    },
+    "pointDotStrokeColor": {
+      "color": "rgba(71, 148, 218, 1)"
+    },
+    "pointDotInStopMode": true,
+    "symbol": "PLC1.MAIN.values[3]"
+  }
+]
+</script>
+</div>
+
+<script data-tchmi-target-attribute="data-tchmi-background-color" type="application/json">
+{
+  "color": "rgba(255, 255, 255, 1)"
+}
+</script>
+</div>

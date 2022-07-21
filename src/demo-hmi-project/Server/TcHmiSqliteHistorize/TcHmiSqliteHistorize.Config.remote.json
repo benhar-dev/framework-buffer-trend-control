@@ -1,0 +1,30 @@
+{
+    "enableBackup": false,
+    "historizedSymbolList": {
+        "PLC1.GVL.structureWithArray.myArray": {
+            "interval": "PT1S",
+            "maxEntries": 10000,
+            "recordingEnabled": true,
+            "rowLimit": 10000
+        },
+        "PLC1.GVL.structureWithArray.myArray.0": {
+            "interval": "PT1S",
+            "maxEntries": 10000,
+            "recordingEnabled": true,
+            "rowLimit": 10000
+        },
+        "PLC1.GVL.structureWithStructureWithArray": {
+            "interval": "PT1S",
+            "maxEntries": 10000,
+            "recordingEnabled": true,
+            "rowLimit": 10000
+        },
+        "PLC1.MAIN.values": {
+            "interval": "PT0.01S",
+            "maxEntries": 6000,
+            "recordingEnabled": true,
+            "rowLimit": 10000
+        }
+    },
+    "maxBackups": 1
+}

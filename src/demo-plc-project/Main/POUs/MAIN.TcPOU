@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="MAIN" Id="{d4424a59-9d68-4c5d-8978-6f205cb721c5}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	values : ARRAY [0..24] OF LREAL;
+	i : int;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[values[0] := values[0] + 1;
+
+IF values[0] > 100 THEN
+	values[0] := 0;
+END_IF
+
+FOR i := 1 TO 24 DO
+	values[i] := values[0] + (i * 10);
+	
+	gvl.arrayWithStructureWithArray[0].myArray[0] := values[0];
+	gvl.structureWithArray.myArray[0] := values[0];
+	gvl.structureWithStructureWithArray.myStruct.myArray[0] := values[0];
+	
+END_FOR]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
