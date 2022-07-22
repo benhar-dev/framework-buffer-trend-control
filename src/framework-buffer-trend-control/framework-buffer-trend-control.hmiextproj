@@ -17,7 +17,7 @@
     <ProjectTypeGuids>{3B740506-4966-4147-AB1F-357FE08946EA}</ProjectTypeGuids>
     <ProjectGuid>41556d9d-9f29-4ba2-8934-bfb9e538f5cd</ProjectGuid>
     <ProjectName>frameworkapextrend</ProjectName>
-    <Name>framework-apex-trend</Name>
+    <Name>framework-buffer-trend-control</Name>
     <HmiInitial>1.12.756.1</HmiInitial>
     <HmiRecent>1.12.756.1</HmiRecent>
   </PropertyGroup>
@@ -115,7 +115,7 @@
     <HmiManifest Include="Manifest.json" />
     <Content Include="LICENSE.txt" />
     <Content Include="Images\logo.png" />
-    <Content Include="framework-apex-trend.nuspec" />
+    <Content Include="framework-buffer-trend-control.nuspec" />
     <Content Include=".tfignore">
       <SubType>Content</SubType>
       <Visible>false</Visible>

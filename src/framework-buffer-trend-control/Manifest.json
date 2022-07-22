@@ -13,8 +13,8 @@
   ],
   "provideMetadata": {
     "toolbox": {
-      "framework-apex-trend": {
-        "200": "framework-apex-trend"
+      "framework-buffer-trend-control": {
+        "200": "framework-buffer-trend-control"
       }
     }
   },
