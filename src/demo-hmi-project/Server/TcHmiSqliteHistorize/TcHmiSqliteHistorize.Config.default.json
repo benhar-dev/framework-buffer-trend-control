@@ -21,13 +21,13 @@
             "rowLimit": 10000
         },
         "PLC1.MAIN.values": {
-            "interval": "PT0.01S",
+            "interval": "PT1S",
             "maxEntries": 100000,
             "recordingEnabled": true,
             "rowLimit": 10000
         }
     },
-    "inMemory": false,
+    "inMemory": true,
     "maxBackups": 1,
     "mode": 3,
     "vacuumOnStartup": false
