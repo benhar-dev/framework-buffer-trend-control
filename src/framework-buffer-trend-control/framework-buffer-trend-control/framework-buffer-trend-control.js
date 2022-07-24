@@ -36,7 +36,7 @@ var TcHmi;
                     // properties
                     this.__serverDomain = 'TcHmiSqliteHistorize';// needs get and set
 
-                    this.__serverRequests = [];
+                    this.__serverLiveDataRequests = [];
 
                     this.__internalLineGraphDescription = [];
 
@@ -529,14 +529,14 @@ var TcHmi;
 
                 __clearInitialDataForAllSeries() {
 
-                    this.__serverRequests = [];
+                    this.__serverLiveDataRequests = [];
                     this.__liveDataBySymbol = {};
 
-                    this.__getInitialCompressedPeriodDataForAllSeries();
+                    this._getLiveData();
 
                 }
 
-                __getInitialCompressedPeriodDataForAllSeries() {
+                _getLiveData() {
 
                     let __this = this;
 
@@ -571,7 +571,7 @@ var TcHmi;
                             }],
                         };
 
-                        __this.__serverRequests.push(request);
+                        __this.__serverLiveDataRequests.push(request);
 
                     });
 
@@ -598,15 +598,12 @@ var TcHmi;
                     //}, refreshInterval);
 
 
-                    let preloadCallback = __this.__getPreloadCallback();
+                    let newDataReceivedCallback = __this.__getNewDataReceivedCallback();
 
-                    let ProcessRequest = function () {
+                    let ProcessNextRequest = function () {
 
-                        console.time('processStart');
+                        let request = __this.__serverLiveDataRequests.shift();
 
-                        
-
-                        let request = __this.__serverRequests.shift();
 
                         if (!request) {
 
@@ -628,15 +625,12 @@ var TcHmi;
                             return;
                         }
 
-                        console.timeEnd('processStart');
+
                         console.time('processRequest');
 
-                        __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) { preloadCallback(reply); ProcessRequest(); });
-                        
-                    }
+                        __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) { newDataReceivedCallback(reply); ProcessNextRequest(); });
 
-                    ProcessRequest();
-
+                    }();
 
                 }
 
@@ -779,10 +773,8 @@ var TcHmi;
 
                 }
 
-                __getPreloadCallback() {
-
-                   
-
+                __getNewDataReceivedCallback() {
+               
                     var __this = this;
 
                     return function (result) {
@@ -835,8 +827,7 @@ var TcHmi;
                                             line.push({ x, y});
 
                                         }
-                                        //console.log(__this.__liveDataBySymbol);
-                                        __this.__liveDataBySymbol[requestDetails.symbol] = __this.__liveDataBySymbol[requestDetails.symbol].concat(line);
+                                        __this.__liveDataBySymbol[requestDetails.symbol] = line;
                                                                                       
                                     }
                                 } 
