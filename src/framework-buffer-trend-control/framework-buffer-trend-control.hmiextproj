@@ -73,9 +73,6 @@
     <Content Include="framework-buffer-trend-control\Icons\64x64.png">
       <SubType>Content</SubType>
     </Content>
-    <Content Include="framework-buffer-trend-control\Include\apexcharts.min.js">
-      <SubType>Content</SubType>
-    </Content>
     <Content Include="framework-buffer-trend-control\Include\chart.js">
       <SubType>Content</SubType>
     </Content>

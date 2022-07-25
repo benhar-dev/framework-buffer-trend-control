@@ -55,12 +55,7 @@
             "name": "Style.css",
             "type": "Stylesheet",
             "description": "Theme independent style"
-        },
-        {
-            "name": "Include/apexcharts.min.js",
-            "type": "JavaScript",
-            "description": "Apexcharts Library"
-        },
+        },     
         {
             "name": "Include/chart.js",
             "type": "JavaScript",
