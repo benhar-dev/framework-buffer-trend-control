@@ -112,6 +112,7 @@ var TcHmi;
                             // Turn off animations and data parsing for performance
                             animation: false,
                             parsing: false,
+                            maintainAspectRatio:false,
 
                             interaction: {
                                 mode: 'nearest',
