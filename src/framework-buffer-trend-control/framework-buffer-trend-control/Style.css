@@ -28,3 +28,51 @@
     cursor: not-allowed;
 }
 */
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .wrapper {
+    display: block;
+    overflow: hidden;
+    margin: 0 auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
+}
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template canvas {
+    background: #fff;
+    width: 600px;
+    height: 400px;
+}
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template h1 {
+    font-family: Roboto, sans-serif;
+    color: #fff;
+    font-weight: 200;
+    text-align: center;
+    display: block;
+    text-decoration: none;
+}
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .chartContextMenu {
+    position: fixed;
+    border: 1px solid #dedede;
+    background: white;
+    list-style: none;
+    border-radius: 0 6px 6px;
+    padding: 0 2px;
+}
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .menu-item {
+    font-size: 14px;
+    line-height: 24px;
+    width: 13em;
+    font-family: sans-serif;
+    padding: 4px 10px;
+    border-bottom: 1px solid #eee;
+}
+
+    .TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .menu-item:hover {
+        background: #dddddd;
+        text-decoration: underline;
+        cursor: pointer;
+    }
