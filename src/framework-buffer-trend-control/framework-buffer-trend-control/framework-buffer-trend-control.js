@@ -39,48 +39,37 @@ var TcHmi;
                     this.__serverRequests = [];
 
                     this.__internalLineGraphDescription = [];
+
+                    this.__serverStartInMs = null;
+                    this.__serverEndInMs = null;
+                    this.__serverPeriodInMs = null;
+                    this.__serverUserStartInMs = null;
+                    this.__serverUserEndInMs = null;
+                    this.__serverUserPeriodInMs = null;
+
+                    this.__chartDatasetBySymbol = {};
+                    this.__chartDataBySymbol = {};
+
                     this.__subscriptionId = null;
 
-                    this.__chartDataset = {};
+                    this.__handleContextMenu = function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.__chartContextMenu.style.left = e.clientX + "px";
+                        this.__chartContextMenu.style.top = e.clientY + "px";
+                        this.__chartContextMenu.style.display = "block";
+                        return (false);
+                    }.bind(this);
+
+                    this.__handleMouseDown = function (e) {
+                        this.__chartContextMenu.style.display = "none";
+                    }.bind(this);
+
                     this.__lineGraphData = [];
                     this.__interval = 1000;
-                    this.__maximumDatapoints = 2000;
-                    this.__internalStart = null;
+                    this.__maximumDatapoints = 1000;
+                    this.__initialPeriod = 'PT1M';
                     this.__internalEnd = null;
-
-                    //this.__options = {
-                    //    chart: {
-                    //        animations: {
-                    //            enabled: false
-                    //        },
-                    //        events: {
-                    //            beforeResetZoom: function () {
-                    //                __this.lastZoom = null;
-                    //            },
-                    //            zoomed: function (_, value) {
-                    //                __this.lastZoom = [value.xaxis.min, value.xaxis.max];
-                    //            }
-                    //        },                           
-                    //        height: '100%'                  
-                    //    },
-                    //    xaxis: {
-                    //        type: 'datetime',
-                    //        tickAmount: 100,
-                    //        labels: {
-                    //            format: 'dd/MM/yyyy',
-                    //        }
-                    //    },
-                    //    yaxis: {
-                    //        min : 0,
-                    //        max : 100
-                    //    },
-                    //    markers: {
-                    //        size: 0
-                    //    },
-                    //    stroke: {
-                    //        width: 1
-                    //    }
-                    //};
 
                     this.__decimation = {
                         enabled: false,
@@ -95,6 +84,7 @@ var TcHmi;
                             enabled: true,
                             mode: 'x',
                             modifierKey: 'ctrl',
+                            onPanComplete: this.__startChartInStaticDataMode.bind(this)
                         },
                         zoom: {
                             wheel: {
@@ -106,7 +96,8 @@ var TcHmi;
                             pinch: {
                                 enabled: true
                             },
-                            mode: 'x'
+                            mode: 'x',
+                            onZoomComplete: this.__startChartInStaticDataMode.bind(this)
                         }
                     };
 
@@ -129,7 +120,7 @@ var TcHmi;
                             },
                             plugins: {
                                 zoom: this.__zoomOptions,
-                                decimation: this.__decimation,
+                                decimation: this.__decimation
                             },
                             scales: {
                                 x: {
@@ -169,7 +160,24 @@ var TcHmi;
 
                     // elements
                     this.__chartContainer = this.__elementTemplateRoot.find('.chartContainer').get(0);
+                    this.__chartContextMenu = this.__elementTemplateRoot.find('.chartContextMenu').get(0);
+                    this.__chartZoomAllButton = this.__elementTemplateRoot.find('.menu-item-zoomall').get(0);
+                    this.__chartLiveButton = this.__elementTemplateRoot.find('.menu-item-live').get(0);
 
+                    // event listners
+                    this.__chartContainer.addEventListener('contextmenu', this.__handleContextMenu, false);
+                    this.__chartContainer.addEventListener('mousedown', this.__handleMouseDown, false);
+
+                    // click events
+                    this.__chartZoomAllButton.onclick = (function () {
+                        this.__startChartFullyZoomedOut();
+                        this.__handleMouseDown();
+                    }).bind(this);
+
+                    this.__chartLiveButton.onclick = (function () {
+                        this.__startChartInLiveDataMode();
+                        this.__handleMouseDown();
+                    }).bind(this);
 
                     // Call __previnit of base class
                     super.__previnit();
@@ -211,16 +219,10 @@ var TcHmi;
                      */
 
                     
-                    if (null !== this.__subscriptionId) {
-                        TcHmi.Server.unsubscribeEx(this.__subscriptionId, { parallel: !0, });
-                    }
+                    this.__cancelPrevious();
 
-                    if (null !== this.__requestId) {
-                        TcHmi.Server.releaseRequest(this.__requestId);
-                    }
-
-                    this.__subscriptionId = null;
-                    this.__requestId = null;                   
+                    this.__chartContainer.removeEventListener('contextmenu', this.__handleContextMenu);
+                    this.__chartContainer.removeEventListener('mousedown', this.__handleMouseDown);
 
                 }
                 /**
@@ -279,56 +281,29 @@ var TcHmi;
                 }
            
 
-                setStart(value) {
+                setInitialPeriod(value) {
 
                     let convertedValue = TcHmi.ValueConverter.toString(value);
 
                     if (null === convertedValue)
-                        convertedValue = this.getAttributeDefaultValueInternal("Start");
+                        convertedValue = this.getAttributeDefaultValueInternal("InitialPeriod");
 
                     if (null !== convertedValue)
                         convertedValue = "first" === convertedValue.toLowerCase() ? "First" : convertedValue.toUpperCase();
 
-                    if (convertedValue !== this.__internalStart) {
+                    if (convertedValue !== this.__initialPeriod) {
 
-                        this.__internalStart = convertedValue;
-                        TcHmi.EventProvider.raise(this.__id + ".onPropertyChanged", { propertyName: "Start" });
-                        this.__processTimeChange();
-
-                    }
-
-                }
-
-                getStart() {
-
-                    return this.__internalStart;
-
-                }
-
-
-                setEnd(value) {
-
-                    let convertedValue = TcHmi.ValueConverter.toString(value);
-
-                    if (null === convertedValue)
-                        convertedValue = this.getAttributeDefaultValueInternal("End");
-
-                    if (null !== convertedValue)
-                        convertedValue = "latest" === convertedValue.toLowerCase() ? "Latest" : convertedValue.toUpperCase();
-
-                    if (convertedValue !== this.__internalEnd) {
-
-                        this.__internalEnd = convertedValue;
-                        TcHmi.EventProvider.raise(this.__id + ".onPropertyChanged", { propertyName: "End", });
-                        this.__processTimeChange();
+                        this.__initialPeriod = convertedValue;
+                        TcHmi.EventProvider.raise(this.__id + ".onPropertyChanged", { propertyName: "InitialPeriod" });
+                        this.__processInitialPeriodChange();
 
                     }
 
                 }
 
-                getEnd() {
+                getInitialPeriod() {
 
-                    return this.__internalEnd;
+                    return this.__initialPeriod;
 
                 }
 
@@ -348,16 +323,16 @@ var TcHmi;
                     if (!this.__isChartAttached()) return;
 
                     if (this.__interval)
-                        this.__setupDataRequest();
+                        this.__startChartInLiveDataMode();
 
                 }
 
-                __processTimeChange() {
+                __processInitialPeriodChange() {
 
                     if (!this.__isChartAttached()) return;
 
-                    if (this.__internalStart && this.__internalEnd)
-                        this.__setupDataRequest();
+                    if (this.__initialPeriod)
+                        this.__startChartInLiveDataMode();
 
                 }
 
@@ -389,14 +364,14 @@ var TcHmi;
                         if (dataset.pointBackgroundColor == null)
                             delete dataset.pointBackgroundColor;
                          
-                        __this.__chartDataset[item.symbol] = dataset;
+                        __this.__chartDatasetBySymbol[item.symbol] = dataset;
 
                     })  
                 }
 
                 __setupChart() {
 
-                    clearInterval(this.cyclic);
+                    this.__chartDataBySymbol = {};
                   
                     if (!this.__internalLineGraphDescription || this.__internalLineGraphDescription.length == 0) return;
 
@@ -404,291 +379,270 @@ var TcHmi;
 
                     if (!this.__chart) 
                         this.__chart = new Chart(this.__chartContainer, this.__config);
-                                      
-                    this.__chart.resetZoom('none');
-
-                    this.__setupDataRequest();
+                                             
+                    this.__startChartInLiveDataMode();
 
                 }
 
-                __setupDataRequest() {
+
+                __cancelPrevious() {               
+
+                    this.__cancelGetLiveData();
+                    this.__cancelGetStaticData();
+
+                }
+
+                __startChartInLiveDataMode() {
 
                     if (TCHMI_DESIGNER) return;
                     if (!this.__isChartAttached()) return;
 
-                    if (null !== this.__subscriptionId) {
-                        TcHmi.Server.unsubscribeEx(this.__subscriptionId, { parallel: !0, });
-                        (this.__subscriptionId = null);
-                    }
-
-                    if (null !== this.__requestId) {
-                        TcHmi.Server.releaseRequest(this.__requestId);
-                        this.__requestId = null;
-                    }
-
-                    if (null !== this.__updateDelay) {
-                        clearTimeout(this.__updateDelay);
-                    }
-
-                    //const callback = this.__getDataNonOptimized.bind(this);
-                    const callback = this.__getOptimizationData.bind(this);
-
-                    const restTimeForServer = 100;
-                    this.__updateDelay = setTimeout(callback, function () {
-                        this.__updateDelay = null;
-                        restTimeForServer();
-                    });
+                    this.__chart.resetZoom('none');
+                    this.__cancelPrevious();
+                    this.__requestChartRefresh(this.__interval);
+                    this.__getLiveData()
 
                 }
 
-                __getOptimizationData() {
+                __startChartFullyZoomedOut() {
 
-                    const __this = this;
+                    if (TCHMI_DESIGNER) return;
+                    if (!this.__isChartAttached()) return;
 
-                    // first collect all of the data about the symbols
-                    var requestHistorizedSymbolList = {
-                        "requestType": "ReadWrite",
-                        "commands": [
-                          {
-                              "commandOptions": [
-                                "SendErrorMessage",
-                                "SendWriteValue"
-                              ],
-                              "symbol": this.__serverDomain + ".Config::historizedSymbolList"
-                          }
-                        ]
-                    }
+                    this.__chart.resetZoom('none');
 
-                    TcHmi.Server.requestEx(requestHistorizedSymbolList, { timeout: 5000 }, function (result) {
+                    this.__cancelPrevious();
+                    this.__requestChartRefresh(this.__interval);
+                    this.__getStaticData('First', 'Latest');
 
-                        if (result.error === TcHmi.Errors.NONE && result.response) {
-
-                            if (null !== result.response.error && void 0 !== result.response.error) {
-                                console.log('Server error');
-                                return;
-                            }
-                            
-                            if (null !== result.response.commands[0].error && void 0 !== result.response.commands[0].error) {
-
-                                console.log('response error');
-                                console.log(result.response.commands[0].error);
-
-                            } else if (null !== result.response.commands[0].readValue && void 0 !== result.response.commands[0].readValue) {
-
-                                if (result.response.commands[0].symbol === __this.__serverDomain + ".Config::historizedSymbolList") {
-
-                                    let historizeSettings = result.response.commands[0].readValue;
-                                    let propertyNames = Object.keys(historizeSettings);
-
-                                    // if any of the property names are included in the symbol root then add the property details to the symbol
-
-                                    __this.__internalLineGraphDescription.forEach(function (item) {
-
-                                        // check to see if any of the property names are in the symbol.
-                                        propertyNames.forEach(function (propertyName) {
-
-                                            if (item.symbol.startsWith(propertyName)) {
-
-                                                // save out all of the historize settings in to the line description
-                                                item.historizeSettings = {
-                                                    interval: historizeSettings[propertyName].interval,
-                                                    maxEntries: historizeSettings[propertyName].maxEntries,
-                                                    recordingEnabled: historizeSettings[propertyName].recordingEnabled,
-                                                    rowLimit: historizeSettings[propertyName].rowLimit
-                                                };
-
-                                                // update the span to be double the interval (this will correctly show gaps in the chart with no data)
-                                                //__this.__chartDataset[item.symbol].spanGaps = __this.__isoToMilliSec(item.historizeSettings.interval) * 1000;
-
-                                            }
-                                        })
-                                    });
-
-                                    __this.__getInitialDataOptimized();
-;
-                                    //__this.__getDataNonOptimized();
-
-                                }
-                            }
-
-                        }
-                    });
                 }
 
-                __getInitialDataOptimized() {
+                __startChartInStaticDataMode(event) {
+
+                    if (TCHMI_DESIGNER) return;
+                    if (!this.__isChartAttached()) return;
+
+                    if (event.chart.isZoomedOrPanned() == false)
+                        return;
+
+                    this.__cancelPrevious();
+                    this.__requestChartRefresh(this.__interval);
+                    this.__getStaticData(event.chart.scales.x.min, event.chart.scales.x.max)         
+
+                }
+
+                
+                __getLiveData() {
+
+                    this.__getLiveDataStartTime = Date.now();
+
+                    this.__serverRequests = [];
 
                     let __this = this;
 
-                    let MAX_DATAPOINTS = this.__maximumDatapoints;
-                    let yAxis = [];
+                    let maxDatapoints = Math.min(this.__maximumDatapoints,this.__elementTemplateRoot.width());
 
-                    if (this.__isAttached && this.__internalLineGraphDescription) {
+                    __this.__internalLineGraphDescription.forEach(function (line) {
 
-                        for (let i = 0, ii = this.__internalLineGraphDescription.length; i < ii; i++)
-                            null !== this.__internalLineGraphDescription[i] && yAxis.push({ symbol: this.__internalLineGraphDescription[i].symbol, });
+                        let requestDetails = JSON.stringify({
+                            symbol: line.symbol
+                        });
 
                         let request = {
                             requestType: "ReadWrite",
                             commands: [{
                                 commandOptions: ["SendErrorMessage"],
-                                symbol: this.__serverDomain + ".GetTrendLineWindow",
+                                symbol: __this.__serverDomain + ".GetTrendLineData",
                                 writeValue: {
-                                    chartName: this.__id,
-                                    xAxisStart: this.__internalStart,
-                                    xAxisEnd: this.__internalEnd,
-                                    yAxes: yAxis,
-                                }
+                                    chartName: __this.__id,
+                                    xAxisStart: __this.__initialPeriod,
+                                    xAxisEnd: 'Latest',
+                                    yAxes: [{ symbol: line.symbol }],
+                                    displayWidth: Math.round(maxDatapoints),
+                                },
+                                customerData: requestDetails
                             }],
                         };
 
-                        this.__requestId = TcHmi.Server.request(
-                            request,
-                            function (result) {
+                        __this.__serverRequests.push(request);
 
-                                __this.opStart = new Date(result.response.commands[0].readValue.xAxisStart).getTime();
-                                __this.opEnd = new Date(result.response.commands[0].readValue.xAxisEnd).getTime();
+                    });
 
-                                let timeInMs = __this.opEnd - __this.opStart;
+                    let newDataReceivedCallback = __this.__getNewDataReceivedCallback();
 
-                                __this.__serverRequests = [];
-                                __this.__chartCurrentDatasetData = {};
-                           
-                                __this.__internalLineGraphDescription.forEach(function (line) {
+                    let ProcessNextRequest = function () {
 
-                                    __this.__chartCurrentDatasetData[line.symbol] = [] 
+                        let request = __this.__serverRequests.shift();
 
-                                    let intervalInMs = __this.__isoToMilliSec(line.historizeSettings.interval);
+                        if (!request) {
 
-                                    let points = 1;
+                            let totalRequestDuration = Date.now() - __this.__getLiveDataStartTime;
 
-                                    if (timeInMs)
-                                        points = timeInMs / intervalInMs;
-
-                                    let requests = points / MAX_DATAPOINTS;
-
-                                    console.log('total points - ', points);
-                                    console.log('max points per request - ', MAX_DATAPOINTS);
-
-                                    let yAxis = [{ symbol: line.symbol }];
-
-                                    let requestStart = __this.opStart;
-                                    let requestEnd = __this.opStart + (intervalInMs * MAX_DATAPOINTS);
-
-                                    console.log('Actual Start', new Date(requestStart).toISOString());
-                                    console.log('Server Start', new Date(result.response.commands[0].readValue.xAxisStart).toISOString());
-                                    console.log('Actual End', new Date(requestEnd).toISOString());
-                                    console.log('Server End', new Date(result.response.commands[0].readValue.xAxisEnd).toISOString());
-                                    console.log('Requests', requests);
-
-                                    let logRequests = [];
-
-
-                                    for (let i = 0; i < Math.ceil(requests) ; i++) {
-
-                                        requestEnd = Math.min(requestEnd, new Date(result.response.commands[0].readValue.xAxisEnd).getTime())
-
-                                        var log = {
-                                            xAxisStart: new Date(requestStart).toISOString(),
-                                            xAxisEnd: new Date(requestEnd).toISOString(),
-                                            displayWidth: Math.ceil(MAX_DATAPOINTS + 1),
-                                        };
-
-                                        let requestDetails = JSON.stringify({
-                                            symbol: line.symbol,
-                                            start: requestStart,
-                                            end: requestEnd
-                                        });
-
-                                        let request = {
-                                            requestType: "ReadWrite",
-                                            commands: [{
-                                                commandOptions: ["SendErrorMessage"],
-                                                symbol: __this.__serverDomain + ".GetTrendLineData",
-                                                writeValue: {
-                                                    chartName: __this.__id,
-                                                    xAxisStart: new Date(requestStart).toISOString(),
-                                                    xAxisEnd: new Date(requestEnd).toISOString(),
-                                                    yAxes: yAxis,
-                                                    displayWidth: Math.round(MAX_DATAPOINTS + 1),
-                                                },
-                                                customerData: requestDetails
-                                            }],
-                                        };
-                                        
-                                        __this.__serverRequests.push(request);
-
-                                        requestStart = requestStart + (intervalInMs * MAX_DATAPOINTS);
-                                        requestEnd = requestEnd + (intervalInMs * MAX_DATAPOINTS);
-
-                                    }
-
-                                });
-
-
-                                let refreshInterval = (__this.__interval > 0) ? __this.__interval / 2 : 1000;
-
-                                __this.cyclic = setInterval(function () {
-
-                                    __this.__chart.data.datasets = [];
-
-                                    Object.entries(__this.__chartCurrentDatasetData).map(item => {
-
-                                        var symbolName = item[0];
-                                        var currentData = item[1];
-
-                                        __this.__chartDataset[symbolName].data = currentData;
-
-                                        __this.__chart.data.datasets.push(__this.__chartDataset[symbolName]);
-
-                                    })
-
-                                    __this.__chart.update();
-
-                                }, refreshInterval);
-
-
-                                let preloadCallback = __this.__getPreloadCallback();
-
-                                let ProcessRequest = function () {
-
-                                    let request = __this.__serverRequests.shift();
-
-                                    if (!request) {
-
-                                        clearInterval(__this.cyclic);
-
-                                        __this.__chart.data.datasets = [];
-
-                                        Object.entries(__this.__chartCurrentDatasetData).map(item => {
-
-                                            var symbolName = item[0];
-                                            var currentData = item[1];
-
-                                            __this.__chartDataset[symbolName].data = currentData;
-
-                                            __this.__chart.data.datasets.push(__this.__chartDataset[symbolName]);
-
-
-                                        })
-
-                                        __this.__chart.update();
-
-                                        return;
-                                    }
-
-                                    __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) { console.timeEnd('d'); preloadCallback(reply); ProcessRequest(); });
-
-                                }
-                                
-                                ProcessRequest();
-
+                            if (totalRequestDuration > __this.__interval) {
+                                __this.getLiveDataCallbackTimer = setTimeout(__this.__getLiveData.bind(__this), 10);
+                                return;
                             }
-                        );
-                    }
+
+                            let requestWaitPeriod = __this.__interval - totalRequestDuration;
+
+                            __this.getLiveDataCallbackTimer = setTimeout(__this.__getLiveData.bind(__this), requestWaitPeriod);
+                            return;
+                        }
+
+                        __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) {
+
+                            newDataReceivedCallback(reply);
+                            ProcessNextRequest();
+
+                        });
+
+                    };
+
+                    ProcessNextRequest();
+
                 }
 
-                __getPreloadCallback() {
+                __cancelGetLiveData() {
 
+                    if (null !== this.____serverRequestsId) {
+                        TcHmi.Server.releaseRequest(this.____serverRequestsId);
+                        this.____serverRequestsId = null;
+                    }
+
+                    if (null !== this.getLiveDataCallbackTimer) {
+                        clearTimeout(this.getLiveDataCallbackTimer);
+                    }
+
+                    this.__clearChartRefersh(false);
+
+                }
+
+                __getStaticData(from,to) {
+
+                    this.__serverRequests = [];
+
+                    let maxDatapoints = Math.min(this.__maximumDatapoints, this.__elementTemplateRoot.width());
+
+                    let start = (from != 'First') ? new Date(from - this.__interval).toISOString() : from;
+                    let end = (to != 'Latest') ? new Date(to + this.__interval).toISOString() : to;
+
+                    let __this = this;
+
+                    this.__internalLineGraphDescription.forEach(function (line) {
+
+                        let requestDetails = JSON.stringify({
+                            symbol: line.symbol
+                        });
+
+                        let request = {
+                            requestType: "ReadWrite",
+                            commands: [{
+                                commandOptions: ["SendErrorMessage"],
+                                symbol: __this.__serverDomain + ".GetTrendLineData",
+                                writeValue: {
+                                    chartName: __this.__id,
+                                    xAxisStart: start,
+                                    xAxisEnd: end,
+                                    yAxes: [{ symbol: line.symbol }],
+                                    displayWidth: Math.round(maxDatapoints),
+                                },
+                                customerData: requestDetails
+                            }],
+                        };
+
+                        __this.__serverRequests.push(request);
+
+                    });
+
+                    __this.__requestChartRefresh(true);
+
+                    let newDataReceivedCallback = __this.__getNewDataReceivedCallback();
+
+                    let ProcessNextRequest = function () {
+
+                        let request = __this.__serverRequests.shift();
+
+                        if (!request) {
+
+                            __this.__clearChartRefersh(true);
+                            return;
+                        }
+
+                        __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) {
+
+                            newDataReceivedCallback(reply);
+                            ProcessNextRequest();
+
+                        });
+
+                    };
+
+                    ProcessNextRequest();
+
+                }
+
+                __cancelGetStaticData() {
+
+                    if (null !== this.____serverRequestsId) {
+                        TcHmi.Server.releaseRequest(this.____serverRequestsId);
+                        this.____serverRequestsId = null;
+                    }
+
+                    this.__clearChartRefersh(false);
+
+                }
+
+                __requestChartRefresh(period) {
+
+                    if (period == null) {
+                        this.__refershChart();
+                        return;      
+                    }
+
+                    if (this.__chartRefreshCallbackTimer !== null)
+                        clearInterval(this.__chartRefreshCallbackTimer);
+
+                    this.__chartRefreshCallbackTimer = setInterval(this.__refershChart.bind(this), period);
+
+                }
+
+                __clearChartRefersh(final) {
+
+                    if (this.__chartRefreshCallbackTimer !== null)
+                        clearInterval(this.__chartRefreshCallbackTimer);
+
+                    this.__chartRefreshCallbackTimer = null;
+
+                    if (final) {
+                        this.__refershChart();
+                        console.log('refresh');
+
+                    }
+
+                }
+
+                __refershChart() {
+
+                    let __this = this;
+
+                    __this.__chart.data.datasets = [];
+
+                    Object.entries(__this.__chartDataBySymbol).map(item => {
+
+                        var symbolName = item[0];
+                        var currentData = item[1];
+
+                        __this.__chartDatasetBySymbol[symbolName].data = currentData;
+                        __this.__chart.data.datasets.push(__this.__chartDatasetBySymbol[symbolName]);
+
+                    })
+
+                    __this.__chart.update();
+
+                }
+
+                __getNewDataReceivedCallback() {
+               
                     var __this = this;
 
                     return function (result) {
@@ -729,10 +683,10 @@ var TcHmi;
 
                                             let x = new Date(result.response.commands[0].readValue.axesData[0][j].x).getTime();
 
-                                            if ( x < requestDetails.start )
+                                            if (j == 0)
                                                 continue;
 
-                                            if ( x > requestDetails.end )
+                                            if (j == jj - 1)
                                                 continue;
 
                                             let y = result.response.commands[0].readValue.axesData[0][j].y
@@ -740,7 +694,7 @@ var TcHmi;
 
                                         }
 
-                                         __this.__chartCurrentDatasetData[requestDetails.symbol] = __this.__chartCurrentDatasetData[requestDetails.symbol].concat(line);
+                                        __this.__chartDataBySymbol[requestDetails.symbol] = line;
                                                                                       
                                     }
                                 } 
