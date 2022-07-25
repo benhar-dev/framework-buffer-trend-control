@@ -615,8 +615,6 @@ var TcHmi;
 
                     if (final) {
                         this.__refershChart();
-                        console.log('refresh');
-
                     }
 
                 }
