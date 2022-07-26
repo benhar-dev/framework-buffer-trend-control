@@ -40,6 +40,8 @@ var TcHmi;
 
                     this.__internalLineGraphDescription = [];
 
+                    this.__logging = true;
+
                     this.__serverStartInMs = null;
                     this.__serverEndInMs = null;
                     this.__serverPeriodInMs = null;
@@ -280,7 +282,36 @@ var TcHmi;
                     return this.__interval;
 
                 }
+
+                setMaxDatapoints(value) {
+
+                    var convertedValue = TcHmi.ValueConverter.toNumber(value);
+                    if (tchmi_equal(convertedValue, this.__maximumDatapoints)) return;
+
+                    this.__maximumDatapoints = convertedValue;
+                    TcHmi.EventProvider.raise(this.__id + ".onPropertyChanged", { propertyName: "MaxDatapoints" });
+                    this.__processMaxDatapointsChange();
+
+                }
+
+                getMaxDatapoints() {
+
+                    return this.__maximumDatapoints;
+
+                }
            
+
+                setLogging(value) {
+
+                    this.__logging = value;
+
+                }
+
+                getLogging() {
+
+                    return this.__logging;
+
+                }
 
                 setInitialPeriod(value) {
 
@@ -324,6 +355,15 @@ var TcHmi;
                     if (!this.__isChartAttached()) return;
 
                     if (this.__interval)
+                        this.__startChartInLiveDataMode();
+
+                }
+
+                __processMaxDatapointsChange() {
+
+                    if (!this.__isChartAttached()) return;
+
+                    if (this.__maximumDatapoints)
                         this.__startChartInLiveDataMode();
 
                 }
@@ -439,9 +479,19 @@ var TcHmi;
 
                     this.__serverRequests = [];
 
-                    let __this = this;
+                    let maxDatapoints = Math.min(this.__maximumDatapoints, this.__elementTemplateRoot.width());
 
-                    let maxDatapoints = Math.min(this.__maximumDatapoints,this.__elementTemplateRoot.width());
+                    if (this.__logging) {
+                        console.log('');
+                        console.log('------------------------------');
+                        console.log('Start of "GetLiveData" request');
+                        console.log('------------------------------');
+                    }
+
+                    if (this.__logging)
+                        console.log('Limiting max data points to', maxDatapoints);
+
+                    let __this = this;
 
                     __this.__internalLineGraphDescription.forEach(function (line) {
 
@@ -486,13 +536,29 @@ var TcHmi;
 
                             let requestWaitPeriod = __this.__interval - totalRequestDuration;
 
+                            if (__this.__logging)
+                                console.log('Waiting', requestWaitPeriod, 'ms');
+
                             __this.getLiveDataCallbackTimer = setTimeout(__this.__getLiveData.bind(__this), requestWaitPeriod);
                             return;
                         }
 
+                        if (__this.__logging)
+                            console.time('Get series data');
+
                         __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) {
 
+                            if (__this.__logging)
+                                console.timeEnd('Get series data');
+
+                            if (__this.__logging)
+                                console.time('  > Process series data');
+
                             newDataReceivedCallback(reply);
+
+                            if (__this.__logging)
+                                console.timeEnd('  > Process series data');
+
                             ProcessNextRequest();
 
                         });
@@ -523,6 +589,16 @@ var TcHmi;
                     this.__serverRequests = [];
 
                     let maxDatapoints = Math.min(this.__maximumDatapoints, this.__elementTemplateRoot.width());
+
+                    if (this.__logging) {
+                        console.log('');
+                        console.log('--------------------------------');
+                        console.log('Start of "GetStaticData" request');
+                        console.log('--------------------------------');
+                    }
+
+                    if (this.__logging)
+                        console.log('Limiting max data points to', maxDatapoints);
 
                     let start = (from != 'First') ? new Date(from - this.__interval).toISOString() : from;
                     let end = (to != 'Latest') ? new Date(to + this.__interval).toISOString() : to;
@@ -569,9 +645,22 @@ var TcHmi;
                             return;
                         }
 
+                        if (__this.__logging)
+                            console.time('Get series data');
+
                         __this.____serverRequestsId = TcHmi.Server.request(request, function (reply) {
 
+                            if (__this.__logging)
+                                console.timeEnd('Get series data');
+
+                            if (__this.__logging)
+                                console.time('  > Process series data');
+
                             newDataReceivedCallback(reply);
+
+                            if (__this.__logging)
+                                console.timeEnd('  > Process series data');
+
                             ProcessNextRequest();
 
                         });
@@ -674,9 +763,17 @@ var TcHmi;
                                 if (result.response.commands[0].symbol === __this.__serverDomain + ".GetTrendLineData") {
                                     if ((null !== result.response.commands[0].readValue.axesData && void 0 !== result.response.commands[0].readValue.axesData && result.response.commands[0].readValue.axesData.length > 0)) {
 
+                                        if (__this.__logging) {
+                                            let serverProcessingTime =__this.__isoToMilliSec(result.response.commands[0].processedEnd) - __this.__isoToMilliSec(result.response.commands[0].processedStart)
+                                                console.log('  > Server processing time', serverProcessingTime.toFixed(3),'ms');
+                                        }
+
                                         let line = [];
 
                                         let requestDetails = JSON.parse(result.response.commands[0].customerData)
+
+                                        if (__this.__logging)
+                                            console.log('  > Series', requestDetails.symbol, 'received', result.response.commands[0].readValue.axesData[0].length, 'datapoints');
 
                                         for (let j = 0, jj = Math.min(result.response.commands[0].readValue.axesData[0].length, 2000) ; j < jj; j++) {
 
