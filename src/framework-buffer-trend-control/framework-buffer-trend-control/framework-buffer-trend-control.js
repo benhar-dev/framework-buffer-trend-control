@@ -52,19 +52,31 @@ var TcHmi;
                     this.__chartDatasetBySymbol = {};
                     this.__chartDataBySymbol = {};
 
+                    this.__exportAllowed = false;
+                    this.__exportInProgress = false;
+
                     this.__subscriptionId = null;
 
                     this.__handleContextMenu = function (e) {
+
                         e.preventDefault();
                         e.stopPropagation();
-                        this.__chartContextMenu.style.left = e.clientX + "px";
-                        this.__chartContextMenu.style.top = e.clientY + "px";
-                        this.__chartContextMenu.style.display = "block";
+
+                        let contextMenu = this.__exportInProgress ? this.__chartContextMenuCancel : this.__chartContextMenu;
+
+                        contextMenu.style.left = e.clientX + "px";
+                        contextMenu.style.top = e.clientY + "px";
+                        contextMenu.style.display = "block";
+
                         return (false);
+
                     }.bind(this);
 
                     this.__handleMouseDown = function (e) {
-                        this.__chartContextMenu.style.display = "none";
+
+                        let contextMenu = this.__exportInProgress ? this.__chartContextMenuCancel : this.__chartContextMenu;
+                        contextMenu.style.display = "none";
+
                     }.bind(this);
 
                     this.__lineGraphData = [];
@@ -163,9 +175,16 @@ var TcHmi;
 
                     // elements
                     this.__chartContainer = this.__elementTemplateRoot.find('.chartContainer').get(0);
+
+                    // standard context menu
                     this.__chartContextMenu = this.__elementTemplateRoot.find('.chartContextMenu').get(0);
                     this.__chartZoomAllButton = this.__elementTemplateRoot.find('.menu-item-zoomall').get(0);
                     this.__chartLiveButton = this.__elementTemplateRoot.find('.menu-item-live').get(0);
+                    this.__chartExportButton = this.__elementTemplateRoot.find('.menu-item-export-current-view').get(0);
+
+                    // cancel context menu
+                    this.__chartContextMenuCancel = this.__elementTemplateRoot.find('.chartContextMenuCancel').get(0);
+                    this.__chartCancelExportButton = this.__elementTemplateRoot.find('.menu-item-cancel-export').get(0);
 
                     // event listners
                     this.__chartContainer.addEventListener('contextmenu', this.__handleContextMenu, false);
@@ -177,9 +196,19 @@ var TcHmi;
                         this.__handleMouseDown();
                     }).bind(this);
 
-                    this.__chartLiveButton.onclick = (function () {
+                    this.__chartLiveButton.onclick = (function () {                       
                         this.__startChartInLiveDataMode();
                         this.__handleMouseDown();
+                    }).bind(this);
+
+                    this.__chartExportButton.onclick = (function () {
+                        this.__handleMouseDown();
+                        this.__startChartExport();                      
+                    }).bind(this);
+
+                    this.__chartCancelExportButton.onclick = (function () {
+                        this.__handleMouseDown();
+                        this.__cancelChartExport();                     
                     }).bind(this);
 
                     // Call __previnit of base class
@@ -339,6 +368,23 @@ var TcHmi;
 
                 }
 
+                __enableExport() {
+
+                    this.__exportAllowed = true;
+                    this.__chartExportButton.classList.remove('context-disabled');
+
+                }
+
+                __disableExport() {
+
+                    this.__exportAllowed = false;
+                    this.__chartExportButton.classList.add('context-disabled');
+
+                    if (this.__exportInProgress)
+                        __cancelChartExport();
+
+                }
+
 
                 __processLineDefinitionListChange() {
 
@@ -439,8 +485,9 @@ var TcHmi;
                     if (!this.__isChartAttached()) return;
 
                     this.__chart.resetZoom('none');
+                    this.__disableExport();
                     this.__cancelPrevious();
-                    this.__requestChartRefresh(this.__interval);
+                    this.__requestChartRefresh(this.__interval);                   
                     this.__getLiveData()
 
                 }
@@ -451,7 +498,7 @@ var TcHmi;
                     if (!this.__isChartAttached()) return;
 
                     this.__chart.resetZoom('none');
-
+                    this.__enableExport();
                     this.__cancelPrevious();
                     this.__requestChartRefresh(this.__interval);
                     this.__getStaticData('First', 'Latest');
@@ -466,6 +513,7 @@ var TcHmi;
                     if (event.chart.isZoomedOrPanned() == false)
                         return;
 
+                    this.__enableExport();
                     this.__cancelPrevious();
                     this.__requestChartRefresh(this.__interval);
                     this.__getStaticData(event.chart.scales.x.min, event.chart.scales.x.max)         
@@ -765,7 +813,7 @@ var TcHmi;
 
                                         if (__this.__logging) {
                                             let serverProcessingTime =__this.__isoToMilliSec(result.response.commands[0].processedEnd) - __this.__isoToMilliSec(result.response.commands[0].processedStart)
-                                                console.log('  > Server processing time', serverProcessingTime.toFixed(3),'ms');
+                                            console.log('  > Server processing time', serverProcessingTime.toFixed(3),'ms');
                                         }
 
                                         let line = [];
@@ -798,6 +846,21 @@ var TcHmi;
                         }
                     }
                 }
+
+                __startChartExport() {
+
+                    if (!this.__exportAllowed)
+                        return;
+
+                    this.__exportInProgress = true;
+
+
+                };
+                __cancelChartExport() {
+
+                    this.__exportInProgress = false;
+
+                };
 
                 __milliSecToIso(milliSec) {
                     if (0 === milliSec) return "PT0S";

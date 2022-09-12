@@ -51,7 +51,7 @@
     text-decoration: none;
 }
 
-.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .chartContextMenu {
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .chart-context-menu {
     position: fixed;
     border: 1px solid #dedede;
     background: white;
@@ -69,8 +69,22 @@
     border-bottom: 1px solid #eee;
 }
 
-    .TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .menu-item:hover {
-        background: #dddddd;
-        text-decoration: underline;
-        cursor: pointer;
-    }
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .menu-item:hover {
+    background: #dddddd;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .context-disabled {
+    color : lightgrey;
+    cursor: pointer;
+}
+
+.TcHmi_Controls_framework_apex_trend_frameworkapextrendcontrol-Template .context-disabled:hover {
+    background: white;
+    text-decoration: none;
+    color: lightgrey;
+    cursor: pointer;
+}
