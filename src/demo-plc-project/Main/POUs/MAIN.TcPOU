@@ -4,7 +4,7 @@
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
 	values : ARRAY [0..24] OF LREAL;
-	i : int;
+	i : INT;
 END_VAR
 ]]></Declaration>
     <Implementation>

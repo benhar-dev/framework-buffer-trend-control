@@ -22,7 +22,7 @@
     <TargetFramework>native1.12-tchmi</TargetFramework>
     <AzureFunctionsVersion>v2</AzureFunctionsVersion>
     <Name>demo-framework-apex-trend</Name>
-    <HmiCommunicationRouterPort>10119</HmiCommunicationRouterPort>
+    <HmiCommunicationRouterPort>10120</HmiCommunicationRouterPort>
     <HmiCommunicationServerAuthPort>13000</HmiCommunicationServerAuthPort>
     <HmiInitial>1.12.756.1</HmiInitial>
     <HmiRecent>1.12.756.1</HmiRecent>

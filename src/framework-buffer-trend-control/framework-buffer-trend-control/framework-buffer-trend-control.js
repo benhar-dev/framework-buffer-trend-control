@@ -187,6 +187,14 @@ var TcHmi;
                     this.__chartContextMenuCancel = this.__elementTemplateRoot.find('.chartContextMenuCancel').get(0);
                     this.__chartCancelExportButton = this.__elementTemplateRoot.find('.menu-item-cancel-export').get(0);
 
+                    // progress
+                    this.__chartProgress = this.__elementTemplateRoot.find('.chart-busy').get(0);
+                    this.__chartProgressBackground = this.__elementTemplateRoot.find('.chart-busy-background-cover').get(0);
+                    this.__chartProgressPanel = this.__elementTemplateRoot.find('.chart-busy-panel').get(0);
+                    this.__chartProgressLabel = this.__elementTemplateRoot.find('.chart-busy-panel h2').get(0);
+                    this.__chartProgressBar = this.__elementTemplateRoot.find('.busy-progress').get(0);
+                    this.__chartProgressValue = this.__elementTemplateRoot.find('.busy-progress span').get(0);
+
                     // event listners
                     this.__chartContainer.addEventListener('contextmenu', this.__handleContextMenu, false);
                     this.__chartContainer.addEventListener('mousedown', this.__handleMouseDown, false);
@@ -369,6 +377,33 @@ var TcHmi;
 
                 }
 
+                __initialiseProgressBar(title, start) {
+
+                    this.__chartProgressLabel.innerHTML = title;
+                    this.__chartProgress.style.display = "block";
+
+                }
+
+                __closeProgressBar() {
+
+                    this.__chartProgress.style.display = "none";
+
+                }
+
+                __updateProgressBar(totalCount, doneCount, title) {
+
+                    if (isNaN(totalCount) || isNaN(doneCount))
+                        return;
+
+                    if (typeof title !== undefined)
+                        this.__chartProgressLabel.innerHTML = title;
+
+                    let progressAsPercentage = totalCount != 0 ? (100 / totalCount) * doneCount : 0;
+
+                    this.__chartProgressValue.style.width = progressAsPercentage.toString() + '%';
+
+                }
+
                 __enableExport() {
 
                     this.__exportAllowed = true;
@@ -475,6 +510,7 @@ var TcHmi;
 
                 __cancelPrevious() {               
 
+                    this.__closeProgressBar();
                     this.__cancelGetLiveData();
                     this.__cancelGetStaticData();
                     this.__cancelChartExport();
@@ -520,6 +556,21 @@ var TcHmi;
                     this.__requestChartRefresh(this.__interval);
                     this.__getStaticData(event.chart.scales.x.min, event.chart.scales.x.max)         
 
+                }
+
+                __completeGetStaticData() {
+
+                    this.__closeProgressBar();
+
+                };
+
+                __updateStaticDataProgressBuildingRequests() {
+                    this.__initialiseProgressBar('Building Requests', 0);
+                }
+
+                __updateStaticDataFetchProgress(totalRequests, remainingRequests) {
+                    let completedRequests = totalRequests - remainingRequests;
+                    this.__updateProgressBar(totalRequests, completedRequests, 'Fetching Data...')
                 }
 
                 
@@ -634,7 +685,9 @@ var TcHmi;
 
                 }
 
-                __getStaticData(from,to) {
+                __getStaticData(from, to) {
+
+                    this.__updateStaticDataProgressBuildingRequests();
 
                     this.__serverRequests = [];
 
@@ -685,12 +738,17 @@ var TcHmi;
 
                     let newDataReceivedCallback = __this.__getNewDataReceivedCallback();
 
+                    let totalRequests = __this.__serverRequests.length;
+
                     let ProcessNextRequest = function () {
+
+                        __this.__updateStaticDataFetchProgress(totalRequests, __this.__serverRequests.length);
 
                         let request = __this.__serverRequests.shift();
 
                         if (!request) {
 
+                            __this.__completeGetStaticData();
                             __this.__clearChartRefersh(true);
                             return;
                         }
@@ -856,6 +914,7 @@ var TcHmi;
                     if (!this.__exportAllowed) return;                      
                    
                     this.__setupExportRequest();
+                    this.__exportInProgress = true;
 
 
                 };
@@ -866,13 +925,43 @@ var TcHmi;
                         this.____serverRequestsId = null;
                     }
 
+                    this.__closeProgressBar();
                     this.__exportInProgress = false;
 
                 };
 
+                __completeChartExport() {
+
+                    if (null !== this.____serverRequestsId) {
+                        TcHmi.Server.releaseRequest(this.____serverRequestsId);
+                        this.____serverRequestsId = null;
+                    }
+
+                    this.__closeProgressBar();
+                    this.__exportInProgress = false;
+
+                };
+
+                __updateExportProgressSetupExport() {
+                    this.__initialiseProgressBar('Export: Starting', 0);                   
+                }
+
+                __updateExportProgressCollectingServerSettings() {
+                    this.__initialiseProgressBar('Export: Collecting Server Settings', 0);
+                }
+
+                __updateExportProgressBuildingRequests() {
+                    this.__initialiseProgressBar('Export: Building Requests', 0);
+                }
+
+                __updateExportFetchProgress(totalRequests, remainingRequests) {
+                    let completedRequests = totalRequests - remainingRequests;
+                    this.__updateProgressBar(totalRequests, completedRequests, 'Export:  Fetching Data...')
+                }
+
                 __setupExportRequest() {
 
-                    this.__exportInProgress = true;
+                    this.__updateExportProgressSetupExport();                
                     this.__updateInternalLineGraphDescriptionsWithServerHistorizeSettings();
 
                 }
@@ -965,6 +1054,8 @@ var TcHmi;
                 __getExportDataOptimized(from, to) {
 
                     let __this = this;
+
+                    this.__updateExportProgressBuildingRequests();
 
                     let start = (from != 'First') ? new Date(from).toISOString() : from;
                     let end = (to != 'Latest') ? new Date(to).toISOString() : to;
@@ -1089,9 +1180,12 @@ var TcHmi;
                             });
 
                             let preloadCallback = __this.__getExportDataCallback();
+                            let totalRequests = preloadRequest.length;
 
                             let ProcessRequest = function () {
                                 let request = preloadRequest.shift();
+
+                                __this.__updateExportFetchProgress(totalRequests, preloadRequest.length);
 
                                 if (!request) {
                                     var chartSeriesData = [];
@@ -1104,6 +1198,7 @@ var TcHmi;
 
                                     console.log('export complete', __this.__exportLineGraphData);
                                     
+                                    __this.__completeChartExport()
                                     return;
                                 }
 
@@ -1120,6 +1215,8 @@ var TcHmi;
                         });
                     }
                 }
+
+                
 
                 __getExportDataCallback() {
                     var __this = this;
