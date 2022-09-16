@@ -513,7 +513,6 @@ var TcHmi;
                     this.__closeProgressBar();
                     this.__cancelGetLiveData();
                     this.__cancelGetStaticData();
-                    this.__cancelChartExport();
 
                 }
 
@@ -883,7 +882,7 @@ var TcHmi;
                                         if (__this.__logging)
                                             console.log('  > Series', requestDetails.symbol, 'received', result.response.commands[0].readValue.axesData[0].length, 'datapoints');
 
-                                        for (let j = 0, jj = Math.min(result.response.commands[0].readValue.axesData[0].length, 2000) ; j < jj; j++) {
+                                        for (let j = 0, jj = result.response.commands[0].readValue.axesData[0].length; j < jj; j++) {
 
                                             let x = new Date(result.response.commands[0].readValue.axesData[0][j].x).getTime();
 
@@ -918,12 +917,14 @@ var TcHmi;
 
 
                 };
-                __cancelChartExport() {
+                __cancelChartExport(error) {
 
                     if (null !== this.____serverRequestsId) {
                         TcHmi.Server.releaseRequest(this.____serverRequestsId);
                         this.____serverRequestsId = null;
                     }
+
+                    console.log('Export failed with error',error);
 
                     this.__closeProgressBar();
                     this.__exportInProgress = false;
@@ -941,6 +942,59 @@ var TcHmi;
                     this.__exportInProgress = false;
 
                 };
+
+                __downloadChartExport() {
+
+                    if (this.__logging) {
+                        console.log(this.__exportLineGraphData);
+                    }
+                    
+                    let header = [
+                        'Symbol',
+                        'Lable',
+                        'UnixEpochTime',
+                        'Value'
+                    ];
+
+                    let csv = [];
+                    let __this = this;
+
+                    Object.entries(this.__exportLineGraphData).map(data => {
+
+                        var symbolName = data[0];
+                        var values = data[1];
+
+                        __this.__exportLineGraphData[symbolName].map(function(values) {
+                            csv.push([symbolName, values.label, values.x, values.y]);
+                        });
+
+
+                    });
+
+                    csv.unshift(header);
+
+                    // convert to string
+                    var csv_as_string = csv.join('\r\n');
+                    var file = new Blob([csv_as_string]);
+                    var url = URL.createObjectURL(file);
+                    var element = document.createElement("a");
+
+                    element.setAttribute('href', url);
+                    element.setAttribute('download', "export.csv");
+                    element.style.display = 'none';
+
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+
+                    setTimeout(function () {
+                        URL.revokeObjectURL(url);
+                    }, 1000 * 60);
+
+
+                    this.__completeChartExport()
+
+                }
 
                 __updateExportProgressSetupExport() {
                     this.__initialiseProgressBar('Export: Starting', 0);                   
@@ -960,10 +1014,8 @@ var TcHmi;
                 }
 
                 __setupExportRequest() {
-
                     this.__updateExportProgressSetupExport();                
                     this.__updateInternalLineGraphDescriptionsWithServerHistorizeSettings();
-
                 }
 
                 __updateInternalLineGraphDescriptionsWithServerHistorizeSettings() {
@@ -1053,12 +1105,31 @@ var TcHmi;
 
                 __getExportDataOptimized(from, to) {
 
+                    if (this.__logging) {
+                        console.log('');
+                        console.log('--------------------------------');
+                        console.log('Start of "ExportDataOptimized" request');
+                        console.log('--------------------------------');
+                    }
+
+                    if (this.__logging) {
+                        console.log('From', from);
+                        console.log('To', to);
+                        console.log('--------------------------------');
+                    }
+
                     let __this = this;
 
                     this.__updateExportProgressBuildingRequests();
 
                     let start = (from != 'First') ? new Date(from).toISOString() : from;
                     let end = (to != 'Latest') ? new Date(to).toISOString() : to;
+
+                    if (this.__logging) {
+                        console.log('Start', start);
+                        console.log('End', end);
+                        console.log('--------------------------------');
+                    }
 
                     let MAX_DATAPOINTS = this.__maximumDatapoints;
                     let yAxis = [];
@@ -1087,17 +1158,13 @@ var TcHmi;
 
                         this.__requestId = TcHmi.Server.request(request, function (result) {
 
-                            let opStart = new Date(
-                              result.response.commands[0].readValue.xAxisStart
-                            ).getTime();
-
-                            let opEnd = new Date(
-                              result.response.commands[0].readValue.xAxisEnd
-                            ).getTime();
+                            let opStart = new Date(result.response.commands[0].readValue.xAxisStart).getTime();
+                            let opEnd = new Date(result.response.commands[0].readValue.xAxisEnd).getTime();
 
                             let timeInMs = opEnd - opStart;
 
                             let preloadRequest = [];
+
                             __this.__exportLineGraphData = {};
 
                             __this.__internalLineGraphDescription.forEach(function (line) {
@@ -1107,13 +1174,12 @@ var TcHmi;
 
                                 __this.__exportLineGraphData[line.symbol] = [];
 
-                                let intervalInMs = __this.__isoToMilliSec(
-                                  line.historizeSettings.interval
-                                );
+                                let intervalInMs = __this.__isoToMilliSec(line.historizeSettings.interval);
 
                                 let points = 1;
 
-                                if (timeInMs) points = timeInMs / intervalInMs;
+                                if (timeInMs)
+                                    points = timeInMs / intervalInMs;
 
                                 let requests = points / MAX_DATAPOINTS;
 
@@ -1125,6 +1191,7 @@ var TcHmi;
                                 for (let i = 0; i < requests; i++) {
                                     let requestDetails = JSON.stringify({
                                         symbol: line.symbol,
+                                        label: line.legendName,
                                         start: requestStart,
                                         end: requestEnd,
                                     });
@@ -1182,43 +1249,68 @@ var TcHmi;
                             let preloadCallback = __this.__getExportDataCallback();
                             let totalRequests = preloadRequest.length;
 
+                            if (__this.__logging) {
+                                console.log('Total Requests', totalRequests);
+                            }
+
                             let ProcessRequest = function () {
+
                                 let request = preloadRequest.shift();
 
-                                __this.__updateExportFetchProgress(totalRequests, preloadRequest.length);
+                                __this.__updateExportFetchProgress(totalRequests, preloadRequest.length);                               
 
                                 if (!request) {
-                                    var chartSeriesData = [];
-
-                                    Object.entries(__this.__exportLineGraphData).map((item) => {
-                                        var series = {};
-                                        series.data = item[1];
-                                        chartSeriesData.push(series);
-                                    });
-
-                                    console.log('export complete', __this.__exportLineGraphData);
                                     
-                                    __this.__completeChartExport()
+                                    if (__this.__logging) {
+                                        console.log('Export Complete', __this.__exportLineGraphData);
+                                    }
+                                    
+                                    __this.__downloadChartExport()
                                     return;
+                                }
+
+                                if (__this.__logging) {
+                                    console.log('Current Request', totalRequests - preloadRequest.length);
+                                    console.log('  > Symbol', request.commands[0].writeValue.yAxis);
+                                    console.log('  > xAxisStart', request.commands[0].writeValue.xAxisStart);
+                                    console.log('  > xAxisEnd', request.commands[0].writeValue.xAxisEnd);
                                 }
 
                                 __this.__preloadRequestId = TcHmi.Server.request(
                                   request,
                                   function (reply) {
+
                                       try {
                                           preloadCallback(reply);
+                                          ProcessRequest();
                                       }
                                       catch (error) {
 
-                                          console.log(error);
+                                          if (error == 'INVALID_START_END') {
 
-                                      }
+                                              if (__this.__logging) {
+                                                  console.warn(' !> Skipping due to INVALID_START_END', result);
+                                              }
 
-                                      ProcessRequest();
+                                              ProcessRequest();
+                                              return;
+                                          }
+
+                                          if (error == 'NODATA_FOUND') {
+
+                                              if (__this.__logging) {
+                                                  console.warn(' !> Skipping due to NODATA_FOUND', result);
+                                              }
+
+                                              ProcessRequest();
+                                              return;
+                                          }
+
+                                          __this.__cancelChartExport(error);
+                                      } 
                                   }
                                 );
                             };
-
                             ProcessRequest();
                         });
                     }
@@ -1240,13 +1332,13 @@ var TcHmi;
                             throw ("Export : Server error", result.response.error);
 
                         if (result.response.id != __this.__preloadRequestId) return;
-
                         __this.__preloadRequestId = null;
 
                         if (null !== result.response.commands[0].error && void 0 !== result.response.commands[0].error) {
 
-                            if (result.response.commands[0].error.message == "INVALID_START_END") return;
-                            if (result.response.commands[0].error.message == "NODATA_FOUND") return;
+                            if (result.response.commands[0].error.message == "INVALID_START_END") throw ('INVALID_START_END');
+                            if (result.response.commands[0].error.message == "NODATA_FOUND") throw ('NODATA_FOUND');
+
                             throw ("Export :" + result.response.commands[0].error);
                         }
 
@@ -1259,16 +1351,20 @@ var TcHmi;
                             let line = [];
                             let requestDetails = JSON.parse(result.response.commands[0].customerData);
 
-                            for (let j = 0, jj = Math.min(result.response.commands[0].readValue.axesData[0].length, 2000) ; j < jj; j++) {
+                            for (let j = 0, jj = result.response.commands[0].readValue.axesData[0].length ; j < jj; j++) {
 
-                                let x = new Date( result.response.commands[0].readValue.axesData[0][j].x).getTime();
+                                let x = new Date(result.response.commands[0].readValue.axesData[0][j].x).getTime();
 
                                 if (x < requestDetails.start) continue;
                                 if (x > requestDetails.end) continue;
 
                                 let y = result.response.commands[0].readValue.axesData[0][j].y;
-                                line.push({ x, y });
+                                line.push({ label: requestDetails.label, x, y });
 
+                            }
+
+                            if (__this.__logging) {
+                                console.log('  > Successfully received');
                             }
 
                             __this.__exportLineGraphData[requestDetails.symbol] = __this.__exportLineGraphData[requestDetails.symbol].concat(line);
