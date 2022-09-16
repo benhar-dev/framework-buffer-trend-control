@@ -1205,7 +1205,15 @@ var TcHmi;
                                 __this.__preloadRequestId = TcHmi.Server.request(
                                   request,
                                   function (reply) {
-                                      preloadCallback(reply);
+                                      try {
+                                          preloadCallback(reply);
+                                      }
+                                      catch (error) {
+
+                                          console.log(error);
+
+                                      }
+
                                       ProcessRequest();
                                   }
                                 );
@@ -1214,89 +1222,58 @@ var TcHmi;
                             ProcessRequest();
                         });
                     }
-                }
-
-                
+                }       
 
                 __getExportDataCallback() {
+
                     var __this = this;
 
                     return function (result) {
-                        if (!__this.__isChartAttached()) return;
 
-                        if (result.error === TcHmi.Errors.NONE && result.response) {
-                            if (
-                              null !== result.response.error &&
-                              void 0 !== result.response.error
-                            ) {
-                                console.log("Server error");
-                                return;
-                            }
+                        if (!__this.__isChartAttached())
+                            throw ("Export : Chart is not attached");
 
-                            if (result.response.id != __this.__preloadRequestId) return;
+                        if (result.error !== TcHmi.Errors.NONE || !result.response)
+                            throw ("Export : No reponse received");
+                        
+                        if (null !== result.response.error && void 0 !== result.response.error)
+                            throw ("Export : Server error", result.response.error);
 
-                            __this.__preloadRequestId = null;
+                        if (result.response.id != __this.__preloadRequestId) return;
 
-                            if (
-                              null !== result.response.commands[0].error &&
-                              void 0 !== result.response.commands[0].error
-                            ) {
-                                if (result.response.commands[0].error.message == "INVALID_START_END")
-                                    return;
+                        __this.__preloadRequestId = null;
 
-                                if (result.response.commands[0].error.message == "NODATA_FOUND")
-                                    return;
+                        if (null !== result.response.commands[0].error && void 0 !== result.response.commands[0].error) {
 
-                                console.log("response error");
-                                console.log(result.response.commands[0].error);
-                            } else if (
-                              null !== result.response.commands[0].readValue &&
-                              void 0 !== result.response.commands[0].readValue
-                            ) {
-                                if (
-                                  result.response.commands[0].symbol ===
-                                  __this.__serverDomain + ".GetTrendLineData"
-                                ) {
-                                    if (
-                                      null !== result.response.commands[0].readValue.axesData &&
-                                      void 0 !== result.response.commands[0].readValue.axesData &&
-                                      result.response.commands[0].readValue.axesData.length > 0
-                                    ) {
-                                        let line = [];
-
-                                        let requestDetails = JSON.parse(
-                                          result.response.commands[0].customerData
-                                        );
-
-                                        for (
-                                          let j = 0,
-                                            jj = Math.min(
-                                              result.response.commands[0].readValue.axesData[0].length,
-                                              2000
-                                            ) ;
-                                          j < jj;
-                                          j++
-                                        ) {
-                                            let x = new Date(
-                                              result.response.commands[0].readValue.axesData[0][j].x
-                                            ).getTime();
-
-                                            if (x < requestDetails.start) continue;
-
-                                            if (x > requestDetails.end) continue;
-
-                                            let y = result.response.commands[0].readValue.axesData[0][j].y;
-                                            line.push({ x, y });
-                                        }
-
-                                        __this.__exportLineGraphData[requestDetails.symbol] =
-                                         __this.__exportLineGraphData[requestDetails.symbol].concat(line);
-
-                                       
-                                    }
-                                }
-                            }
+                            if (result.response.commands[0].error.message == "INVALID_START_END") return;
+                            if (result.response.commands[0].error.message == "NODATA_FOUND") return;
+                            throw ("Export :" + result.response.commands[0].error);
                         }
+
+                        if (null === result.response.commands[0].readValue || void 0 === result.response.commands[0].readValue) return;
+                        
+                        if (result.response.commands[0].symbol !== __this.__serverDomain + ".GetTrendLineData") throw ("Export : unexpected symbol returned");
+
+                        if (null !== result.response.commands[0].readValue.axesData && void 0 !== result.response.commands[0].readValue.axesData && result.response.commands[0].readValue.axesData.length > 0) {
+
+                            let line = [];
+                            let requestDetails = JSON.parse(result.response.commands[0].customerData);
+
+                            for (let j = 0, jj = Math.min(result.response.commands[0].readValue.axesData[0].length, 2000) ; j < jj; j++) {
+
+                                let x = new Date( result.response.commands[0].readValue.axesData[0][j].x).getTime();
+
+                                if (x < requestDetails.start) continue;
+                                if (x > requestDetails.end) continue;
+
+                                let y = result.response.commands[0].readValue.axesData[0][j].y;
+                                line.push({ x, y });
+
+                            }
+
+                            __this.__exportLineGraphData[requestDetails.symbol] = __this.__exportLineGraphData[requestDetails.symbol].concat(line);
+                               
+                        }                                              
                     };
                 }
 
