@@ -15,10 +15,13 @@ always subject to change, revision, and rethinking at any time. Please do not ho
 in perpetuity.
 
 ## Overview 
-This is a proof of concept to create a 3rd party Chart trend framework control   
+This is a proof of concept to create a 3rd party Chart trend framework control.  Now also supports CSV export.
 
 ## Getting Started
 Run the PLC program (which will create trend data), then open up Desktop.view.
+
+## Example of export
+![image](./docs/images/Export.gif)
 
 ## Screenshot
 ![image](./docs/images/Screenshot.png)
@@ -26,9 +29,8 @@ Run the PLC program (which will create trend data), then open up Desktop.view.
 ## Code 
 There will be a Coding Bytes video on this control in the near future. 
 
-
 ## Versions
-* TcXaeShell 3.1.4024.29
+* TcXaeShell 3.1.4024.32
 * TE2000 1.12.756.1
 
 ## Need more help?

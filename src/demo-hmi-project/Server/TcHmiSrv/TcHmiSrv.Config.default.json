@@ -74,8 +74,8 @@
     "DISCOVERY": 2,
     "ENABLE_SERVER_UPDATE": true,
     "ENDPOINTS": [
-        "http://172.16.0.26:13000",
-        "http://172.16.0.26:3007",
+        "http://10.0.0.7:13000",
+        "http://10.0.0.7:3007",
         "http://127.0.0.1:3007"
     ],
     "ETAGENABLED": true,
