@@ -951,7 +951,7 @@ var TcHmi;
                     
                     let header = [
                         'Symbol',
-                        'Lable',
+                        'Label',
                         'UnixEpochTime',
                         'Value'
                     ];
